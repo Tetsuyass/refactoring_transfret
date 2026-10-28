@@ -46,15 +46,17 @@ public class LegacyAdapter implements SystemeTransport {
 
     @Override
     public Optional<String> creerClient(DemandeClient d) {
-        Client client = serviceClient.creerClient(d.nom(), d.email(), d.telephone(), d.adresse(), d.type().name(), d.siret());
+        TypeClient type = TypeClient.valueOf(d.type().name());
+        Client client = serviceClient.creerClient(d.nom(), d.email(), d.telephone(), d.adresse(), type, d.siret());
         return Optional.ofNullable(client).map(Client::getEmail);
     }
 
     @Override
     public Optional<String> creerExpedition(DemandeExpedition d) {
         Client client = Database.clients.get(d.refClient());
+        ModeTransport mode = ModeTransport.valueOf(d.mode().name());
         Expedition expedition = serviceExpedition.creerExpedition(client, versColis(d.colis()), d.villeDepart(),
-                d.villeArrivee(), d.mode().name(), d.urgent(), d.assurance());
+                d.villeArrivee(), mode, d.urgent(), d.assurance());
         return Optional.ofNullable(expedition).map(Expedition::getId);
     }
 
@@ -65,14 +67,17 @@ public class LegacyAdapter implements SystemeTransport {
             return Optional.empty();
         }
         int delai = (int) ChronoUnit.DAYS.between(jour(e.getDateCreation()), jour(e.getDateLivraisonPrevue()));
-        return Optional.of(new EtatExpedition(e.getId(), Statut.valueOf(e.getStatut()), e.getPrixHT(), e.getPrixTTC(),
+        Statut statut = Statut.valueOf(e.getStatut().name());
+        return Optional.of(new EtatExpedition(e.getId(), statut, e.getPrixHT(), e.getPrixTTC(),
                 delai, e.getVehicule().getImmatriculation(), e.getFraisAnnulation()));
     }
 
     @Override
     public OptionalDouble devisTTC(DemandeDevis d) {
+        ModeTransport mode = ModeTransport.valueOf(d.mode().name());
+        TypeClient typeClient = TypeClient.valueOf(d.typeClient().name());
         double devis = serviceExpedition.calculerDevis(versColis(d.colis()), d.villeDepart(), d.villeArrivee(),
-                d.mode().name(), d.urgent(), d.assurance(), d.typeClient().name());
+                mode, d.urgent(), d.assurance(), typeClient);
         return devis == -1 ? OptionalDouble.empty() : OptionalDouble.of(devis);
     }
 
@@ -117,16 +122,8 @@ public class LegacyAdapter implements SystemeTransport {
     }
 
     private static Colis versColis(ColisDto c) {
+        TypeMarchandise type = TypeMarchandise.valueOf(c.type().name());
         return new Colis(c.description(), c.poidsKg(), c.longueurCm(), c.largeurCm(), c.hauteurCm(),
-                codeType(c.type()), c.valeurDeclaree());
-    }
-
-    private static int codeType(TypeMarchandise type) {
-        return switch (type) {
-            case STANDARD -> Colis.STANDARD;
-            case FRAGILE -> Colis.FRAGILE;
-            case DANGEREUX -> Colis.DANGEREUX;
-            case REFRIGERE -> Colis.REFRIGERE;
-        };
+                type, c.valeurDeclaree());
     }
 }

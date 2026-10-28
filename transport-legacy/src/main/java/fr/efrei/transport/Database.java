@@ -31,17 +31,17 @@ public class Database {
     }
 
     public void sauvegarderClient(Client c) {
-        executer("INSERT INTO client (nom, email, telephone, type) VALUES ('" + c.getNom() + "', '" + c.getEmail() + "', '" + c.getTelephone() + "', '" + c.getType() + "')");
+        executer("INSERT INTO client (nom, email, telephone, type) VALUES ('" + c.getNom() + "', '" + c.getEmail() + "', '" + c.getTelephone() + "', '" + c.getType().name() + "')");
         clients.put(c.getEmail(), c);
     }
 
     public void sauvegarderExpedition(Expedition e) {
-        executer("INSERT INTO expedition (id, client, depart, arrivee, mode, statut, prix_ttc) VALUES ('" + e.getId() + "', '" + e.getClient().getEmail() + "', '" + e.getVilleDepart() + "', '" + e.getVilleArrivee() + "', '" + e.getMode() + "', '" + e.getStatut() + "', " + e.getPrixTTC() + ")");
+        executer("INSERT INTO expedition (id, client, depart, arrivee, mode, statut, prix_ttc) VALUES ('" + e.getId() + "', '" + e.getClient().getEmail() + "', '" + e.getVilleDepart() + "', '" + e.getVilleArrivee() + "', '" + e.getMode().name() + "', '" + e.getStatut().name() + "', " + e.getPrixTTC() + ")");
         expeditions.put(e.getId(), e);
     }
 
     public void mettreAJourStatut(Expedition e) {
-        executer("UPDATE expedition SET statut = '" + e.getStatut() + "' WHERE id = '" + e.getId() + "'");
+        executer("UPDATE expedition SET statut = '" + e.getStatut().name() + "' WHERE id = '" + e.getId() + "'");
     }
 
     public Expedition trouverExpedition(String id) {
