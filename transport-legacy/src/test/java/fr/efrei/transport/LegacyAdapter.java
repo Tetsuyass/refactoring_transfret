@@ -30,18 +30,32 @@ public class LegacyAdapter implements SystemeTransport {
 
     private ServiceClient serviceClient;
     private ServiceExpedition serviceExpedition;
+    private ClientRepositoryMemoire clientRepository;
+    private ExpeditionRepositoryMemoire expeditionRepository;
+    private CanalNotificationTest canalNotification;
 
     @Override
     public void reinitialiser() {
-        Database.getInstance();
-        Database.expeditions.clear();
-        Database.clients.clear();
-        EmailService.journal.clear();
-        SmsService.journal.clear();
-        ServiceExpedition.compteur = 0;
-        Flotte.initialiser();
-        serviceClient = new ServiceClient();
-        serviceExpedition = new ServiceExpedition();
+        // Construction d'un nouveau graphe d'objets
+        FlotteRepository flotteRepository = new FlotteRepositoryMemoire();
+        flotteRepository.initialiser();
+        
+        clientRepository = new ClientRepositoryMemoire();
+        expeditionRepository = new ExpeditionRepositoryMemoire();
+        canalNotification = new CanalNotificationTest();
+        
+        ValidateurClient validateurClient = new ValidateurClient();
+        ValidateurExpedition validateurExpedition = new ValidateurExpedition();
+        EstimateurDelai estimateurDelai = new EstimateurDelai();
+        CalculateurPrix calculateurPrix = new CalculateurPrix();
+        AffectationVehicule affectationVehicule = new AffectationVehicule(flotteRepository);
+        Notificateur notificateur = new Notificateur(canalNotification);
+        GenerateurFacture generateurFacture = new GenerateurFacture();
+        
+        serviceClient = new ServiceClient(clientRepository, validateurClient, canalNotification);
+        serviceExpedition = new ServiceExpedition(
+            expeditionRepository, calculateurPrix, affectationVehicule,
+            validateurExpedition, estimateurDelai, notificateur, generateurFacture, 0);
     }
 
     @Override
@@ -53,7 +67,7 @@ public class LegacyAdapter implements SystemeTransport {
 
     @Override
     public Optional<String> creerExpedition(DemandeExpedition d) {
-        Client client = Database.clients.get(d.refClient());
+        Client client = clientRepository.trouverParEmail(d.refClient());
         ModeTransport mode = ModeTransport.valueOf(d.mode().name());
         Expedition expedition = serviceExpedition.creerExpedition(client, versColis(d.colis()), d.villeDepart(),
                 d.villeArrivee(), mode, d.urgent(), d.assurance());
@@ -62,7 +76,7 @@ public class LegacyAdapter implements SystemeTransport {
 
     @Override
     public Optional<EtatExpedition> consulter(String id) {
-        Expedition e = Database.expeditions.get(id);
+        Expedition e = expeditionRepository.trouverParId(id);
         if (e == null) {
             return Optional.empty();
         }
@@ -98,16 +112,16 @@ public class LegacyAdapter implements SystemeTransport {
 
     @Override
     public Optional<String> facture(String id) {
-        return Optional.ofNullable(Database.expeditions.get(id)).map(serviceExpedition::genererFacture);
+        return Optional.ofNullable(expeditionRepository.trouverParId(id)).map(serviceExpedition::genererFacture);
     }
 
     @Override
     public List<Notification> notifications() {
         List<Notification> notifications = new ArrayList<>();
-        for (String[] email : EmailService.journal) {
+        for (String[] email : canalNotification.emails) {
             notifications.add(new Notification(Canal.EMAIL, email[0], email[1]));
         }
-        for (String[] sms : SmsService.journal) {
+        for (String[] sms : canalNotification.sms) {
             notifications.add(new Notification(Canal.SMS, sms[0], sms[1]));
         }
         return notifications;

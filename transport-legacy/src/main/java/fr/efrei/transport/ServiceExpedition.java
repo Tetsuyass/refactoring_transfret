@@ -7,8 +7,6 @@ import java.util.Random;
 
 public class ServiceExpedition {
 
-    public static int compteur = 0;
-
     private static final double TAUX_TVA = 1.2;
     private static final double FRAIS_ANNULATION_EN_COURS = 0.5;
     private static final double FACTEUR_KM_MILLE = 1.852;
@@ -16,13 +14,28 @@ public class ServiceExpedition {
     private static final int DISTANCE_ROULEE_AVION = 2;
     private static final int TEMPERATURE_REFRIGERATION = 4;
 
-    private Database db = Database.getInstance();
-    private CalculateurPrix calculateur = new CalculateurPrix();
-    private AffectationVehicule affectation = new AffectationVehicule();
-    private ValidateurExpedition validateur = new ValidateurExpedition();
-    private EstimateurDelai estimateurDelai = new EstimateurDelai();
-    private Notificateur notificateur = new Notificateur();
-    private GenerateurFacture generateurFacture = new GenerateurFacture();
+    private final ExpeditionRepository expeditionRepository;
+    private final CalculateurPrix calculateur;
+    private final AffectationVehicule affectation;
+    private final ValidateurExpedition validateur;
+    private final EstimateurDelai estimateurDelai;
+    private final Notificateur notificateur;
+    private final GenerateurFacture generateurFacture;
+    private int compteur;
+
+    public ServiceExpedition(ExpeditionRepository expeditionRepository, CalculateurPrix calculateur,
+                           AffectationVehicule affectation, ValidateurExpedition validateur,
+                           EstimateurDelai estimateurDelai, Notificateur notificateur,
+                           GenerateurFacture generateurFacture, int compteurInitial) {
+        this.expeditionRepository = expeditionRepository;
+        this.calculateur = calculateur;
+        this.affectation = affectation;
+        this.validateur = validateur;
+        this.estimateurDelai = estimateurDelai;
+        this.notificateur = notificateur;
+        this.generateurFacture = generateurFacture;
+        this.compteur = compteurInitial;
+    }
 
     public Expedition creerExpedition(Client client, List<Colis> colis, String villeDepart, String villeArrivee, ModeTransport mode, boolean urgent, boolean assurance) {
         String erreur = validateur.valider(client, colis, villeDepart, villeArrivee, mode, urgent);
@@ -62,7 +75,7 @@ public class ServiceExpedition {
         cal.add(Calendar.DAY_OF_MONTH, estimateurDelai.calculerDelai(distance, mode, urgent));
         e.setDateLivraisonPrevue(cal.getTime());
 
-        db.sauvegarderExpedition(e);
+        expeditionRepository.sauvegarder(e);
         notificateur.notifierCreation(client, e.getId(), villeDepart, villeArrivee, mode, e.getPrixTTC(), Utils.formaterDate(e.getDateLivraisonPrevue()));
         return e;
     }
@@ -83,7 +96,7 @@ public class ServiceExpedition {
     }
 
     public boolean demarrerExpedition(String id) {
-        Expedition e = db.trouverExpedition(id);
+        Expedition e = expeditionRepository.trouverParId(id);
         if (e == null || e.getStatut() != StatutExpedition.CREEE) {
             System.out.println("ERREUR : impossible de démarrer l'expédition " + id);
             return false;
@@ -109,26 +122,26 @@ public class ServiceExpedition {
                 break;
             }
         }
-        db.mettreAJourStatut(e);
+        expeditionRepository.mettreAJourStatut(e);
         notificateur.notifierDepart(e.getClient(), e.getId(), e.getVilleDepart());
         return true;
     }
 
     public boolean livrerExpedition(String id) {
-        Expedition e = db.trouverExpedition(id);
+        Expedition e = expeditionRepository.trouverParId(id);
         if (e == null || e.getStatut() != StatutExpedition.EN_COURS) {
             System.out.println("ERREUR : impossible de livrer l'expédition " + id);
             return false;
         }
         e.setStatut(StatutExpedition.LIVREE);
         libererVehicule(e);
-        db.mettreAJourStatut(e);
+        expeditionRepository.mettreAJourStatut(e);
         notificateur.notifierLivraison(e.getClient(), e.getId(), e.getVilleArrivee());
         return true;
     }
 
     public boolean annulerExpedition(String id) {
-        Expedition e = db.trouverExpedition(id);
+        Expedition e = expeditionRepository.trouverParId(id);
         if (e == null || e.getStatut() == StatutExpedition.LIVREE || e.getStatut() == StatutExpedition.ANNULEE) {
             System.out.println("ERREUR : impossible d'annuler l'expédition " + id);
             return false;
@@ -139,7 +152,7 @@ public class ServiceExpedition {
         }
         e.setStatut(StatutExpedition.ANNULEE);
         libererVehicule(e);
-        db.mettreAJourStatut(e);
+        expeditionRepository.mettreAJourStatut(e);
         notificateur.notifierAnnulation(e.getClient(), e.getId(), e.getFraisAnnulation());
         return true;
     }
@@ -153,5 +166,9 @@ public class ServiceExpedition {
 
     public String genererFacture(Expedition expedition) {
         return generateurFacture.generer(expedition);
+    }
+
+    public int getCompteur() {
+        return compteur;
     }
 }

@@ -6,9 +6,26 @@ import java.util.List;
 public class Main {
 
     public static void main(String[] args) {
-        Flotte.initialiser();
-        ServiceClient serviceClient = new ServiceClient();
-        ServiceExpedition serviceExpedition = new ServiceExpedition();
+        // Construction du graphe d'objets
+        FlotteRepository flotteRepository = new FlotteRepositoryMemoire();
+        flotteRepository.initialiser();
+        
+        ClientRepository clientRepository = new ClientRepositoryMemoire();
+        ExpeditionRepository expeditionRepository = new ExpeditionRepositoryMemoire();
+        CanalNotification canalNotification = new CanalNotificationConsole();
+        
+        ValidateurClient validateurClient = new ValidateurClient();
+        ValidateurExpedition validateurExpedition = new ValidateurExpedition();
+        EstimateurDelai estimateurDelai = new EstimateurDelai();
+        CalculateurPrix calculateurPrix = new CalculateurPrix();
+        AffectationVehicule affectationVehicule = new AffectationVehicule(flotteRepository);
+        Notificateur notificateur = new Notificateur(canalNotification);
+        GenerateurFacture generateurFacture = new GenerateurFacture();
+        
+        ServiceClient serviceClient = new ServiceClient(clientRepository, validateurClient, canalNotification);
+        ServiceExpedition serviceExpedition = new ServiceExpedition(
+            expeditionRepository, calculateurPrix, affectationVehicule,
+            validateurExpedition, estimateurDelai, notificateur, generateurFacture, 0);
 
         System.out.println("\n----- Clients -----");
         Client dupont = serviceClient.creerClient("Jean Dupont", "jean.dupont@mail.fr", "0601020304", "12 rue de la Paix, 75002 Paris", TypeClient.PARTICULIER, null);
