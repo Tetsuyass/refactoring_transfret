@@ -1,7 +1,9 @@
 package fr.efrei.transport;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Main {
 
@@ -16,8 +18,29 @@ public class Main {
         
         ValidateurClient validateurClient = new ValidateurClient();
         ValidateurExpedition validateurExpedition = new ValidateurExpedition();
-        EstimateurDelai estimateurDelai = new EstimateurDelai();
-        CalculateurPrix calculateurPrix = new CalculateurPrix();
+        
+        // Configuration des stratégies de tarif
+        Map<ModeTransport, TarifTransport> tarifsParMode = new HashMap<>();
+        tarifsParMode.put(ModeTransport.ROUTE, new TarifRoute());
+        tarifsParMode.put(ModeTransport.RAIL, new TarifRail());
+        tarifsParMode.put(ModeTransport.MER, new TarifMer());
+        tarifsParMode.put(ModeTransport.AIR, new TarifAir());
+        
+        // Configuration des stratégies de remise
+        Map<TypeClient, PolitiqueRemise> remisesParTypeClient = new HashMap<>();
+        remisesParTypeClient.put(TypeClient.PARTICULIER, new RemiseParticulier());
+        remisesParTypeClient.put(TypeClient.ENTREPRISE, new RemiseEntreprise());
+        remisesParTypeClient.put(TypeClient.PREMIUM, new RemisePremium());
+        
+        // Configuration des stratégies de délai
+        Map<ModeTransport, DelaiTransport> delaisParMode = new HashMap<>();
+        delaisParMode.put(ModeTransport.ROUTE, new DelaiRoute());
+        delaisParMode.put(ModeTransport.RAIL, new DelaiRail());
+        delaisParMode.put(ModeTransport.MER, new DelaiMer());
+        delaisParMode.put(ModeTransport.AIR, new DelaiAir());
+        
+        CalculateurPrix calculateurPrix = new CalculateurPrix(tarifsParMode, remisesParTypeClient);
+        EstimateurDelai estimateurDelai = new EstimateurDelai(delaisParMode);
         AffectationVehicule affectationVehicule = new AffectationVehicule(flotteRepository);
         Notificateur notificateur = new Notificateur(canalNotification);
         GenerateurFacture generateurFacture = new GenerateurFacture();
